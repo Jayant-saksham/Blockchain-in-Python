@@ -1,6 +1,6 @@
 # Initializing our blockchain list
 genesis_block = {
-    'previous_hash' : '',
+    'previous_hash': '',
     'index': 0,
     'transactions': []
 }
@@ -10,13 +10,20 @@ open_transactions = []
 owner = 'Jayant'
 participants = {owner}
 
+
 def get_last_blockchain():
     '''Returns the last value of the current blockchain'''
     if len(blockchain) < 1:
         return None
     return blockchain[-1]
 
-def add_transaction(recipient, sender = owner, amount = 1.0):
+
+def hash_block(block):
+    '''Generates a hash for the given block'''
+    return "-".join(str(block[key]) for key in block)
+    
+
+def add_transaction(recipient, sender=owner, amount=1.0):
     '''Append a new value of transactions
         Arguments:
             - sender : The sender of the coins
@@ -24,13 +31,14 @@ def add_transaction(recipient, sender = owner, amount = 1.0):
             - amount : The amount of coins sent with the transaction (default = 1.0)
     '''
     transaction = {
-        'sender' : sender,
-        'recipient' : recipient,
-        'amount' : amount
+        'sender': sender,
+        'recipient': recipient,
+        'amount': amount
     }
     open_transactions.append(transaction)
     participants.add(sender)
     participants.add(recipient)
+
 
 def get_transaction_value():
     '''Returns the input of the user'''
@@ -38,6 +46,7 @@ def get_transaction_value():
     tx_amount = float(input("Enter amount : "))
     data = (tx_recipient, tx_amount)
     return data
+
 
 def print_blockchain():
     '''Prints the blockchain'''
@@ -47,30 +56,44 @@ def print_blockchain():
     print("-" * 20)
 
 
+def mine_block():
+    last_block = get_last_blockchain()
+    if last_block is not None:
+        hash_last_block = hash_block(last_block)
+        block = {
+            'previous_hash': hash_last_block,
+            'index': len(blockchain),
+            'transactions': open_transactions
+        }
+        blockchain.append(block)
 
 def menu():
     print("1 : Add transaction")
     print("2 : Print the current blockchain")
     print("3 : Print  participants")
+    print("4 : Mine the block")
     print("q : Quit")
+
 
 while True:
     menu()
     choice = input("Enter your choice : ")
     if choice == '1':
         data = get_transaction_value()
-        recipient, amount = data 
+        recipient, amount = data
         add_transaction(
-            recipient = recipient, 
-            amount = amount
+            recipient=recipient,
+            amount=amount
         )
         print(open_transactions)
     elif choice == '2':
         print_blockchain()
     elif choice == '3':
         print(participants)
+    elif choice == '4':
+        mine_block()
     elif choice == 'q':
-        break 
+        break
     else:
         print("Invalid choice!")
 
