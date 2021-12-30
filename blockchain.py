@@ -1,3 +1,7 @@
+from hashlib import sha256
+from json import dumps
+MINING_REWARD = 10
+
 # Initializing our blockchain list
 genesis_block = {
     'previous_hash': '',
@@ -20,7 +24,7 @@ def get_last_blockchain():
 
 def hash_block(block):
     '''Generates a hash for the given block'''
-    return "-".join(str(block[key]) for key in block)
+    return sha256(dumps(block).encode()).hexdigest()
     
 
 def add_transaction(recipient, sender=owner, amount=1.0):
@@ -40,6 +44,23 @@ def add_transaction(recipient, sender=owner, amount=1.0):
     participants.add(recipient)
 
 
+def get_balance(participant = owner):
+    '''Returns the remaining balance'''
+    tx_sender = [[tx['amount'] for tx in block['transactions'] if tx['sender'] == participant] for block in blockchain]
+    amount_sent = 0
+    for tx in tx_sender:
+        amount_sent += sum(tx)
+
+    
+    tx_recipient = [[tx['amount'] for tx in block['transactions'] if tx['recipient'] == participant] for block in blockchain]
+    amount_recivied = 0
+    for tx in tx_recipient:
+        amount_recivied += sum(tx) 
+
+    return amount_recivied - amount_sent
+
+
+
 def get_transaction_value():
     '''Returns the input of the user'''
     tx_recipient = input("Enter recipient of the transaction : ")
@@ -57,7 +78,14 @@ def print_blockchain():
 
 
 def mine_block():
+    '''Mining the block to the current blockchain'''
     last_block = get_last_blockchain()
+    reward_transaction = {
+        'sender': "MINING",
+        'recipient': owner,
+        'amount': MINING_REWARD,
+    }
+    open_transactions.append(reward_transaction)
     if last_block is not None:
         hash_last_block = hash_block(last_block)
         block = {
@@ -66,6 +94,9 @@ def mine_block():
             'transactions': open_transactions
         }
         blockchain.append(block)
+        return True
+    return False
+
 
 def menu():
     print("1 : Add transaction")
@@ -81,20 +112,22 @@ while True:
     if choice == '1':
         data = get_transaction_value()
         recipient, amount = data
-        add_transaction(
-            recipient=recipient,
-            amount=amount
+        add_transaction (
+            recipient = recipient,
+            amount = amount
         )
-        print(open_transactions)
     elif choice == '2':
         print_blockchain()
     elif choice == '3':
         print(participants)
     elif choice == '4':
-        mine_block()
+        if mine_block():
+            open_transactions = []
     elif choice == 'q':
         break
     else:
         print("Invalid choice!")
+    print(open_transactions)
+    print(get_balance())
 
 print("User left!")
