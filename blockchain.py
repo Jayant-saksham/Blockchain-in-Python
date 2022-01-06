@@ -1,12 +1,13 @@
-from hashlib import sha256
-from json import dumps
+from hash_utils import hash_string_256, hash_block
 MINING_REWARD = 10
+from collections import OrderedDict
 
 # Initializing our blockchain list
 genesis_block = {
     'previous_hash': '',
     'index': 0,
-    'transactions': []
+    'transactions': [],
+    'proof': 100,
 }
 
 blockchain = [genesis_block]
@@ -22,9 +23,28 @@ def get_last_blockchain():
     return blockchain[-1]
 
 
-def hash_block(block):
-    '''Generates a hash for the given block'''
-    return sha256(dumps(block).encode()).hexdigest()
+def valid_proof(transaction, last_hash, proof):
+    '''It validates the current Nonce
+        - Transactions
+        - Previous Hash
+        - Nonce: Number used only once
+    '''
+    guess = (str(transaction) + str(last_hash) + str(proof)).encode()
+    guess_hash = hash_string_256(guess)
+    print(guess_hash)
+    if guess_hash[0:2] == '00':
+        return True
+    return False
+
+
+def proof_of_work():
+    '''Returns the correct proof'''
+    last_block = get_last_blockchain()
+    lash_hash = hash_block(last_block)
+    proof = 0
+    while not valid_proof(open_transactions, lash_hash, proof):
+        proof += 1
+    return proof
 
 
 def verify_transaction(transaction):
@@ -41,11 +61,9 @@ def add_transaction(recipient, sender=owner, amount=1.0):
             - recipient : The recipient of the coins
             - amount : The amount of coins sent with the transaction (default = 1.0)
     '''
-    transaction = {
-        'sender': sender,
-        'recipient': recipient,
-        'amount': amount
-    }
+    transaction = OrderedDict(
+        [('sender', sender), ('recipient', recipient), ('amount', amount)]
+    )
     if verify_transaction(transaction):
         open_transactions.append(transaction)
         participants.add(sender)
@@ -98,13 +116,18 @@ def mine_block():
         'recipient': owner,
         'amount': MINING_REWARD,
     }
+    # reward_transaction = OrderedDict(
+    #     [('sender': 'MINING'), ('recipient', owner), ('amount', MINING_REWARD) ]
+    # )
+    proof = proof_of_work()
     open_transactions.append(reward_transaction)
     if last_block is not None:
         hash_last_block = hash_block(last_block)
         block = {
             'previous_hash': hash_last_block,
             'index': len(blockchain),
-            'transactions': open_transactions
+            'transactions': open_transactions,
+            'proof': proof,
         }
         blockchain.append(block)
         return True
