@@ -1,15 +1,12 @@
+from block import Block
+import json
+from collections import OrderedDict
 from hash_utils import hash_string_256, hash_block
 MINING_REWARD = 10
-from collections import OrderedDict
-import json
 
 # Initializing our blockchain list
-genesis_block = {
-    'previous_hash': '',
-    'index': 0,
-    'transactions': [],
-    'proof': 100,
-}
+genesis_block = Block(0, "", [], 100, 0)
+
 
 blockchain = [genesis_block]
 open_transactions = []
@@ -18,22 +15,55 @@ participants = {owner}
 
 
 def save_data():
-    with open('blockchain.txt', mode='w') as f:
-        f.write(json.dumps(blockchain))
-        f.write("\n")
-        f.write(json.dumps(open_transactions))
+    try:
+        with open('blockchain.txt', mode='w') as f:
+            savable_chain = [block.__dict__ for block in blockchain]
+            f.write(json.dumps(savable_chain))
+            f.write("\n")
+            f.write(json.dumps(open_transactions))
+    except:
+        print("Not able to save data!")
 
 
 def load_data():
-    with open('blockchain.txt', mode = 'r') as f:
-        file_content = f.readlines()
-        global blockchain
-        global open_transactions
-        blockchain = json.loads(file_content[0][:-1])
-        open_transactions = json.loads(file_content[1])
+    try:
+        with open('blockchain.txt', mode='r') as f:
+            file_content = f.readlines()
+            global blockchain
+            global open_transactions
+            blockchain = json.loads(file_content[0][:-1])
+            updated_blockchain = []
+            for block in blockchain:
+                converted_tx = [OrderedDict(
+                    [('sender', tx['sender']), ('recipient',
+                                                tx['recipient']), ('amount', tx['amount'])]
+                )]
+                updated_block = Block(
+                    index=block['index'],
+                    proof=block['proof'],
+                    transactions=converted_tx,
+                    previous_hash=block['previous_hash'],
+                    timestamp=block['timestamp']
+                )
+
+                updated_blockchain.append(updated_block)
+            blockchain = updated_blockchain
+            open_transactions = json.loads(file_content[1])
+            updated_transactions = []
+            for tx in open_transactions:
+                updated_transaction = OrderedDict(
+                    [('sender', tx['sender']), ('recipient',
+                                                tx['recipient']), ('amount', tx['amount'])]
+                )
+                updated_transactions.append(updated_transaction)
+            open_transactions = updated_transactions
+
+    except:
+        print("Not able to fetch data!!")
 
 
 load_data()
+
 
 def get_last_blockchain():
     '''Returns the last value of the current blockchain'''
@@ -87,13 +117,14 @@ def add_transaction(recipient, sender=owner, amount=1.0):
         open_transactions.append(transaction)
         participants.add(sender)
         participants.add(recipient)
+        save_data()
         return True
     return False
 
 
 def get_balance(participant=owner):
     '''Returns the remaining balance'''
-    tx_sender = [[tx['amount'] for tx in block['transactions']
+    tx_sender = [[tx['amount'] for tx in block.transactions
                   if tx['sender'] == participant] for block in blockchain]
     open_tx_sender = [tx['amount']
                       for tx in open_transactions if tx['sender'] == participant]
@@ -102,7 +133,7 @@ def get_balance(participant=owner):
     for tx in tx_sender:
         amount_sent += sum(tx)
 
-    tx_recipient = [[tx['amount'] for tx in block['transactions']
+    tx_recipient = [[tx['amount'] for tx in block.transactions
                      if tx['recipient'] == participant] for block in blockchain]
     amount_recivied = 0
     for tx in tx_recipient:
@@ -130,36 +161,36 @@ def print_blockchain():
 def mine_block():
     '''Mining the block to the current blockchain'''
     last_block = get_last_blockchain()
-    reward_transaction = {
-        'sender': "MINING",
-        'recipient': owner,
-        'amount': MINING_REWARD,
-    }
-    # reward_transaction = OrderedDict(
-    #     [('sender': 'MINING'), ('recipient', owner), ('amount', MINING_REWARD) ]
-    # )
+    reward_transaction = OrderedDict(
+        [('sender', 'MINING'), ('recipient', owner), ('amount', MINING_REWARD)]
+    )
     proof = proof_of_work()
     open_transactions.append(reward_transaction)
     if last_block is not None:
         hash_last_block = hash_block(last_block)
-        block = {
-            'previous_hash': hash_last_block,
-            'index': len(blockchain),
-            'transactions': open_transactions,
-            'proof': proof,
-        }
+        block = Block(
+            index=len(blockchain),
+            proof=proof,
+            transactions=open_transactions,
+            previous_hash=hash_last_block,
+        )
+
         blockchain.append(block)
         save_data()
         return True
     return False
+
 
 def verify_chain():
     '''Verifies the current blockchain and return True if it is valid'''
     for index, block in enumerate(blockchain):
         if index == 0:
             continue
-        if block['previous_hash'] != hash_block(blockchain[index-1]):
+        if block.previous_hash != hash_block(blockchain[index-1]):
             return False
+        if not valid_proof(block.transactions[:-1], block.previous_hash, block.proof):
+            return False
+
     return True
 
 
@@ -194,15 +225,16 @@ while True:
             open_transactions = []
     elif choice == '5':
         if len(blockchain) >= 1:
-            blockchain[0] = {
-                'previous_hash': '',
-                'index': 0,
-                'transactions': [{
+            blockchain[0] = Block(
+                previous_hash='',
+                index=0,
+                transactions=[{
                     'sender': "Prateek",
                     'recipient': "Sudershan",
                     'amount': 500,
                 }]
-            }
+            )
+
     elif choice == 'q':
         break
     else:
